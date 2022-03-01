@@ -1,8 +1,10 @@
 import os
 import argparse
 import datetime
-import utils
+from utils import formatted_list_date
 from config import *
+from probes import *
+
 
 def get_arguments():
     """returns AttribDict with command line arguments"""
@@ -24,17 +26,15 @@ def get_arguments():
 
     args = parser.parse_args()
 
-    if args.yesterday is False and args.onedate is None and args.interval is None:
-        print("Analyzing yesterday's data")
-        args.yesterday = True
-
     print("DTK-QUALITY - PROBES")
-    print("Passed args:", args)
+    if args.yesterday is False and args.onedate is None and args.interval is None:
+        print("No date argument passed. Analyzing yesterday's data")
+        args.yesterday = True
 
     return args
 
 
-def main():
+def probe_quality():
     args = get_arguments()
 
     if args.probe not in PROBES_LIST:
@@ -44,15 +44,15 @@ def main():
     if args.yesterday:
         start_date = end_date = datetime.date.today()-datetime.timedelta(1)
     elif args.onedate is not None:
-        one_date = utils.formatted_list_date(args.onedate)
+        one_date = formatted_list_date(args.onedate)
         if one_date is False:
             print('Error. Date not in the right format <yyyymmdd>')
             exit(3)
 
         start_date = end_date = datetime.date(one_date[0], one_date[1], one_date[2])
     else:
-        start_date = utils.formatted_list_date(args.interval[0])
-        end_date = utils.formatted_list_date(args.interval[1])
+        start_date = formatted_list_date(args.interval[0])
+        end_date = formatted_list_date(args.interval[1])
         if start_date is False or end_date is False:
             print('Error. Date not in the right format <yyyymmdd>')
             exit(3)
@@ -63,6 +63,19 @@ def main():
             print('Error. End date is inferior to start date.')
             exit(3)
 
+    if args.probe == 'below_noise_model' or args.probe == 'bnmd':
+        exit_code = probe_below_noise_model(args.netsta, args.site, args.channel, args.directory, start_date, end_date)
+    elif args.probe == 'flat':
+        exit_code = probe_flat_signal(args.netsta, args.site, args.channel, args.directory, start_date, end_date)
+    elif args.probe == 'harmonic':
+        exit_code = probe_harmonic_spikes(args.netsta, args.site, args.channel, args.directory, start_date, end_date)
+    else:
+        exit_code = 3
+        print('Error. Probe not in list.')
+        exit(exit_code)
+
+    exit(exit_code)
+
 
 if __name__ == "__main__":
-    main()
+    probe_quality()
